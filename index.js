@@ -11,6 +11,21 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const verifyJWT = (req,res,next) => {
+  const authorization= req.headers.authorization;
+  if(!authorization){
+    return res.status(401).send({error:true, message:'unauthorized access'});
+  }
+  //bearer token
+  const token = authorization.split(" ")[1]
+  jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+    if(err){
+      return res.status(401).send({error:true, message:'unauthorized access'});
+    }
+    req.decoded=decoded;
+    next();
+  })
+}
 
 app.get('/', (req, res) =>{
     res.send("Rental solution running");
@@ -60,6 +75,52 @@ async function run() {
     //user get from database 
 
 // product related api 
+    //product sort from banner area
+    app.get('/sortProducts',async(req,res)=>{
+      const city=req.query.city;
+      const area=req.query.area;
+      const category=req.query.category;
+      console.log(req.query);
+      const result= await productsCollection.find({city,area,category }).toArray()
+      res.send(result);
+    })
+    // side bar sorting
+    app.get('/products-collection',async(req,res)=>{
+      const query=req.query;
+      
+      let price=1;
+      if(query?.price){
+         price=query?.price.toLowerCase();
+        if(price=='low to high'){
+          price=1
+        }else{
+          price=-1;
+        }
+        
+      }
+      const city=query?.city;
+      const month = query?.month;
+      const rentType = query?.rentType.split(',');
+      const bed=query?.bed.split(',');
+      const bedNumber = bed.map(b=>parseInt(b))
+      const wash=query?.wash.split(',');
+      const washRoomNumber = wash.map(w=>parseInt(w))
+      const findProducts = productsCollection
+      .find({
+        city: city,
+        month: month,
+        category: { $in: rentType },
+        room: { $in: bedNumber },
+        bath: { $in: washRoomNumber },
+      })
+      .sort({ rent: price });
+    const result = await findProducts.toArray();
+    console.log("result", result);
+    res.send(result);
+   
+
+    })
+    app.get('/')
     //post product to database
     app.post('/product',async(req,res)=>{
       const product=req.body;
@@ -69,9 +130,16 @@ async function run() {
       res.send(result)
     })
     //get all products from database 
-    app.get('/products', async(req, res) =>{
-      const result = await productsCollection.find().toArray()
+    app.get('/products', async(req, res) => {
+      const result = await productsCollection.find().sort({ _id: -1 }).toArray()
       res.send(result);
+
+    })
+    //get all products from database 
+    app.get('/sort-products', async(req, res) =>{
+      console.log(req.query);
+      // const result = await productsCollection.find().toArray()
+      // res.send(result);
 
     })
     // Send a ping to confirm a successful connection
