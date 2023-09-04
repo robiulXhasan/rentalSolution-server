@@ -86,7 +86,7 @@ async function run() {
     })
     // side bar sorting
     app.get('/products-collection',async(req,res)=>{
-      const query=req.query;
+      const query={};
       
       let price=1;
       if(query?.price){
@@ -98,21 +98,33 @@ async function run() {
         }
         
       }
-      const city=query?.city;
-      const month = query?.month;
-      const rentType = query?.rentType.split(',');
-      const bed=query?.bed.split(',');
-      const bedNumber = bed.map(b=>parseInt(b))
-      const wash=query?.wash.split(',');
-      const washRoomNumber = wash.map(w=>parseInt(w))
+     
+      if(req.query.rentType != "false"){
+        const rentType=req.query?.rentType.split(',');
+        query.category={$in: rentType};
+      }
+      if(req.query.month){
+        query.month = req.query.month;
+      }
+
+      console.log(req.query);
+      if(req.query.city){
+        query.city = req.query.city;
+      }
+      
+      if(req.query.bed != "false"){
+        const bedRooms=req.query?.bed.split(',');
+        const bedNumber = bedRooms.map(bed=>parseInt(bed))
+        query.room={$in: bedNumber};
+      }
+      if(req.query.wash != "false"){
+        const washRooms=req.query?.wash.split(',');
+        const washRoomNumber = washRooms.map(wash=>parseInt(wash))
+        query.bath={$in: washRoomNumber};
+      }
+console.log(query);
       const findProducts = productsCollection
-      .find({
-        city: city,
-        month: month,
-        category: { $in: rentType },
-        room: { $in: bedNumber },
-        bath: { $in: washRoomNumber },
-      })
+      .find(query)
       .sort({ rent: price });
     const result = await findProducts.toArray();
     console.log("result", result);
@@ -120,7 +132,11 @@ async function run() {
    
 
     })
-    app.get('/')
+    app.get('/categoryWiseData',async(req,res)=>{
+      const category=req.query.category;
+      const result= await productsCollection.find({ category: category}).toArray()
+      res.send(result)
+    })
     //post product to database
     app.post('/product',async(req,res)=>{
       const product=req.body;
